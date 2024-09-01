@@ -1,7 +1,7 @@
 import numpy as np
-from sw_gas_flux import gasflux
-from MLD_calc import mld_calc
-from MLD_kara_modified import *
+from pwp.sw_gas_flux import gasflux
+from pwp.MLD_calc import mld_calc
+from pwp.MLD_kara_modified import *
 
 # global physical constants
 cpw = 4183.3 # specific heat of seawater [J/kgC]

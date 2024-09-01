@@ -2,7 +2,7 @@ import numpy as np
 import seawater as sw
 from scipy.interpolate import interp1d
 
-from MLD_calc import is_between
+from pwp.MLD_calc import is_between
 
 def kara_modified(s, t, z, deltaT=0.8, prevMLD=None):
 	'''

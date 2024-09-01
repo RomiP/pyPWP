@@ -20,7 +20,7 @@ University of Toronto
 '''
 
 
-from parametrizations import  *
+from pwp.parametrizations import  *
 import progressbar
 import os
 import sys
