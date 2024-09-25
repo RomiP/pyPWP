@@ -24,6 +24,7 @@ from pwp.parametrizations import  *
 import progressbar
 import os
 import sys
+import numpy as np
 from scipy import io as sio
 from scipy.interpolate import interp1d
 import matplotlib.pyplot as plt
