@@ -55,7 +55,7 @@ def wanninkoff(pwp, n, gas):
 	:return: depth vector of gas flux in kg/m^3
 	'''
 	ca = vars(pwp)[gas+'_forcing'][n-1]
-	cw = vars(pwp)[gas][n-1, 0]
+	cw = vars(pwp)[gas][0, n-1]
 	u = pwp.u[n-1]
 	v = pwp.v[n-1]
 	t = pwp.temp[0,n-1]
