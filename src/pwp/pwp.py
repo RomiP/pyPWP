@@ -21,7 +21,7 @@ University of Toronto
 
 
 from pwp.parametrizations import  *
-import progressbar
+from tqdm import tqdm
 import os
 import sys
 import numpy as np
@@ -150,10 +150,10 @@ class PWP:
 
 		return s
 
-	def read_in_init_data(self, profile_path, met_path, tracer_list, time_step=None, depth_step=None):
+	def read_in_init_data(self, profile, met, tracer_list, time_step=None, depth_step=None):
 		'''
 		Reads in and stores initial profile and meteorology to self
-		:param profile_path: path to profile file
+		:param profile: path to profile file or Profile obj
 			fields (* mandatory, - optional)
 				* 'z' depth vector [m]
 				* 's' salinity [psu]
@@ -163,7 +163,7 @@ class PWP:
 				- 'u' zonal water profile speed [m/s]
 				- 'v' meridional water profile speed [m/s]
 				- tracers [kg/m^3]
-		:param met_path: path to meteorology file
+		:param met: path to meteorology file or Meteorology obj
 			fields (* mandatory, - optional)
 				* 'time' time vector [days]
 				* 'sw' shortwave radiation [W/m^2]
@@ -189,12 +189,18 @@ class PWP:
 			self.dz = depth_step
 
 		# begin by loading in initial profile and forcing
-		prof_data = sio.loadmat(profile_path, squeeze_me=True)
-		met_data = sio.loadmat(met_path, squeeze_me=True)
+		if isinstance(profile, str):
+			prof_data = sio.loadmat(profile, squeeze_me=True)
+		else:
+			prof_data = profile.__dict__
+		if isinstance(met, str):
+			met_data = sio.loadmat(met, squeeze_me=True)
+		else:
+			met_data = met.__dict__
 
 		# index of max depth in initial profile data
 		prof_z = np.squeeze(prof_data['z'])
-		i_zmax = np.argmin(np.abs(prof_z - self.max_depth))
+		# i_zmax = np.argmin(np.abs(prof_z - self.max_depth))
 		# initialize depth vector based on step size and max depth
 		self.z = np.arange(0, self.max_depth, self.dz)
 		# initialize time vector based on step size and
@@ -216,7 +222,7 @@ class PWP:
 		self.lat = np.mean(prof_data['lat'])
 
 		# read in longitude if it's included
-		if 'lon' in prof_data:
+		if 'lon' in prof_data and prof_data['lon']:
 			self.lon  = np.mean(prof_data['lon'])
 		else:
 			print('longitude not included in profile')
@@ -355,67 +361,64 @@ class PWP:
 		# tlen = 5 # just for debugging
 
 
-		with progressbar.ProgressBar(max_value=tlen) as bar:
-			for i in range(1, tlen):
+		for i in tqdm(range(1, tlen)):
 
-				# carry profile from last time step
-				self.sal[:, i] = self.sal[:, i - 1]
-				self.temp[:, i] = self.temp[:, i - 1]
+			# carry profile from last time step
+			self.sal[:, i] = self.sal[:, i - 1]
+			self.temp[:, i] = self.temp[:, i - 1]
 
-				# compute temp and sal changes
-				if self.heat_ON:
-					self.temp[:,i] += fluxes['temp'](self, i)
-				if self.emp_ON:
-					self.sal[0,i] = self.sal[0,i-1] + fluxes['sal'](self, i) # add surface flux
+			# compute temp and sal changes
+			if self.heat_ON:
+				self.temp[:,i] += fluxes['temp'](self, i)
+			if self.emp_ON:
+				self.sal[0,i] = self.sal[0,i-1] + fluxes['sal'](self, i) # add surface flux
 
-				# update the density
-				self.dens[:,i] = sw.dens0(self.sal[:,i], self.temp[:,i])
+			# update the density
+			self.dens[:,i] = sw.dens0(self.sal[:,i], self.temp[:,i])
 
-				# apply tracer fluxes
-				for j in self.tracer_names:
-					# todo: check for saturation
-					vars(self)[j][:,i] = fluxes[j](self, i, j)
+			# apply tracer fluxes
+			for j in self.tracer_names:
+				# todo: check for saturation
+				vars(self)[j][:,i] = fluxes[j](self, i, j)
 
-				# # mix top few meters, this prevents freezing of the surface layer
-				# # the seawater package has a bug whereby density decreases indefinitely
-				# # past freezing point leading to an artificial stable equilibrium
-				# # need to implement sub-time step mixing to prevent this
-				# mix_depth = 2 * self.dt / 3600 # meters per hour
-				# imix = np.argmin(abs(self.z - mix_depth))
-				# self._mix(imix, i)
+			# # mix top few meters, this prevents freezing of the surface layer
+			# # the seawater package has a bug whereby density decreases indefinitely
+			# # past freezing point leading to an artificial stable equilibrium
+			# # need to implement sub-time step mixing to prevent this
+			# mix_depth = 2 * self.dt / 3600 # meters per hour
+			# imix = np.argmin(abs(self.z - mix_depth))
+			# self._mix(imix, i)
 
-				# check freezing condition
-				if self.allow_freezing:
-					self._ice_formation(i)
-				else:
-					self._prevent_freezing(i)
+			# check freezing condition
+			if self.allow_freezing:
+				self._ice_formation(i)
+			else:
+				self._prevent_freezing(i)
 
-				# free convection - remove static instability
-				self._remove_si(i)
+			# free convection - remove static instability
+			self._remove_si(i)
 
-				# compute and record mixed layer depth
-				self.mld[i] = mld_fn(self, i)
-				mld_idx = np.argmin(np.abs(self.z-self.mld[i])) # index of mld
+			# compute and record mixed layer depth
+			self.mld[i] = mld_fn(self, i)
+			mld_idx = np.argmin(np.abs(self.z-self.mld[i])) # index of mld
 
-				# # for debugging
-				# self.plot_profile('dens', i)
+			# # for debugging
+			# self.plot_profile('dens', i)
 
-				# apply wind stress
-				if self.winds_ON:
-					fluxes['momentum'](self, i, mld_idx)
+			# apply wind stress
+			if self.winds_ON:
+				fluxes['momentum'](self, i, mld_idx)
 
-				# apply mixed layer entrainment
-				self._bulk_richardson_mix(mld_idx, i)
+			# apply mixed layer entrainment
+			self._bulk_richardson_mix(mld_idx, i)
 
-				# apply shear flow instability
-				self._grad_richardson_mix(i)
+			# apply shear flow instability
+			self._grad_richardson_mix(i)
 
-				# apply background diffusion
-				if self.diffusion_ON:
-					self._diffuse(i)
+			# apply background diffusion
+			if self.diffusion_ON:
+				self._diffuse(i)
 
-				# update progress bar
-				bar.update(i)
 
 		print('Process complete.')
 		if save_name:
