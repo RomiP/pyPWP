@@ -179,7 +179,7 @@ def mld_kara_mix(pwp, n):
 	# restratification threshold: don't allow mld to decrease more than this in one time step
 	restrat_threshold = pwp.dt / 3600 * 25
 
-	if (prev_mld - mld) > restrat_threshold:
+	if (mld - prev_mld) > restrat_threshold:
 		mld_idx = np.argmin(np.abs(pwp.z - prev_mld))
 		pwp._mix(mld_idx, n)
 		mld = mld_calc(pwp.sal[:, n], pwp.temp[:, n], pwp.z, pwp.mld_thresh)
