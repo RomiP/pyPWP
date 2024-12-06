@@ -29,6 +29,7 @@ from scipy import io as sio
 from scipy.interpolate import interp1d
 import matplotlib.pyplot as plt
 import seawater as sw
+import xarray as xr
 
 # specify surface flux parametrizations
 fluxes = {
@@ -309,25 +310,51 @@ class PWP:
 
 	def save(self, file_name, write_info=False):
 		'''
-		Saves instance of PWP as .mat file: dictionary structure
+		Saves instance of PWP as .mat or .nc file: dictionary structure
 		:param file_name: string of where to save file e.g. path/to/file
-		*** Do NOT include file type eg. ".mat"
 		:return:
 		'''
 
 		path = os.path.dirname(file_name)
 		name = os.path.basename(file_name)
-		# name = os.path.splitext(name)[0]
-		if name.endswith('.mat'):
-			name = name[:-4]
+
 
 		if not os.path.exists(path):
 			os.mkdir(path)
 
 		save_name = path + '/' + name
-		sio.savemat(save_name + '.mat', self.__dict__)
+		if save_name.endswith('.nc'):
+			dpwp = self.__dict__
+			data = {}
+
+			depth = dpwp.pop('z')
+			time = dpwp.pop('time')
+			coords = {
+				'time':time,
+				'depth':depth
+			}
+			for i in dpwp.keys():
+				var = dpwp[i]
+				if isinstance(var, np.ndarray):
+					if min(var.shape) == 1 or len(var.shape) == 1:
+						data[i] = (['time'], var)
+					else:
+						data[i] = (['depth', 'time'], var)
+				else:
+					coords[i] = var
+			xr_pwp = xr.Dataset(
+				data_vars=data,
+				coords=coords
+			)
+			xr_pwp.to_netcdf(save_name)
+
+		else:
+			if not save_name.endswith('.mat'):
+				save_name += '.mat'
+			sio.savemat(save_name, self.__dict__)
 
 		if write_info:
+			save_name, ext = os.path.splitext(save_name)
 			f = open(save_name + '_info.txt', 'w')
 			f.write(self.__str__())
 			f.close()
