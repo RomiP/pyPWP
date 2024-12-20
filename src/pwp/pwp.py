@@ -151,7 +151,7 @@ class PWP:
 
 		return s
 
-	def read_in_init_data(self, profile, met, tracer_list, time_step=None, depth_step=None):
+	def read_in_init_data(self, profile, met, tracer_list=[], time_step=None, depth_step=None):
 		'''
 		Reads in and stores initial profile and meteorology to self
 		:param profile: path to profile file or Profile obj
