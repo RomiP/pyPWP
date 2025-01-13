@@ -109,36 +109,4 @@ def overwrite_profile(filepath, s_new, t_new):
 
     sio.savemat(filepath, dat)
 
-if __name__ == '__main__':
-    root = '/Users/rominapiunno/PycharmProjects/pwp_python_00/input_data/'
-    filename = 'profile.mat'
-
-    sal, temp, dens, z = read_in_data(root+filename)
-
-    k = 6
-    start_ind = 3
-    # s_hat  = smooth(sal, i_start=start_ind, k=k)
-    # t_hat  = smooth(temp, i_start=start_ind, k=k)
-
-    d_hat = sw.dens0(sal,temp)
-    while np.any(np.diff(d_hat[start_ind:]) < 0):
-        sal, temp = smooth_si(sal, temp, start_ind)
-        d_hat = sw.dens0(sal, temp)
-
-    # d_hat = sw.dens0(s_hat, t_hat)
-
-    # dddz = np.diff(d_hat)
-    # line = np.ones(len(dddz))
-    # plt.plot(z[1:], dddz)
-    # plt.plot(z[1:], line*0, color='r')
-    # plt.show()
-
-    plot_profile(z, d_hat)
-    # overwrite_profile(root+filename, sal, temp)
-
-    # plt.plot(dens, z)
-    # plt.plot(d_hat, z)
-    # ax = plt.gca()
-    # ax.set_ylim(ax.get_ylim()[::-1])
-    # plt.show()
 

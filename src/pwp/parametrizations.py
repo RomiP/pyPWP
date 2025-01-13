@@ -64,7 +64,49 @@ def wanninkoff(pwp, n, gas):
 	profile = vars(pwp)[gas][:,n-1]
 	profile[0] -= F
 	return profile
+def momentum_flux_original(pwp, n, mld_idx):
+	'''
+	This is the original parametrization of momentum flux as writen
+	by Earle Wilson
+	:param pwp: instance of PWP object
+	:param n: model time step index
+	:param mld_idx: index of mixed layer depth
+	:return:
+	'''
+	### Rotate u,v do wind input, rotate again, apply mixing ###
+	ang = -pwp.f * pwp.dt / 2
+	uvel, vvel = rotate(pwp.u_water[:,n], pwp.v_water[:,n], ang)
+	du = (pwp.tx[n - 1] / (pwp.mld[n] * pwp.dens[0,n])) * pwp.dt
+	dv = (pwp.ty[n - 1] / (pwp.mld[n] * pwp.dens[0,n])) * pwp.dt
+	pwp.u_water[:mld_idx,n] = uvel[:mld_idx] + du
+	pwp.v_water[:mld_idx,n] = vvel[:mld_idx] + dv
 
+	### Apply drag to current ###
+	# Original comment: this is a horrible parameterization of inertial-internal wave dispersion
+	if pwp.drag_ON:
+		ucon = 0.1 * np.abs(pwp.f)
+		if ucon > 1e-10:
+			pwp.u_water[:,n] *= (1 - pwp.dt * ucon)
+			pwp.v_water[:,n] *= (1 - pwp.dt * ucon)
+	else:
+		print("Warning: Parameterization for inertial-internal wave dispersion is turned off.")
+		printDragWarning = False
+
+	pwp.u_water[:,n], pwp.v_water[:,n] = rotate(pwp.u_water[:,n], pwp.v_water[:,n], ang)
+
+def rotate(x,y,theta):
+	'''
+	Rotates the vector (x,y) through an angle theta
+	:param x: x component of vector
+	:param y: y component of vector
+	:param theta: angle [radians]
+	:return: vector (x', y') as tuple
+	'''
+	r = (x + 1j * y) * np.exp(1j * theta)
+	x = r.real
+	y = r.imag
+
+	return x, y
 def mld_kara(pwp, n):
 	'''
 	computes mixed layer depth using Kara method
@@ -187,46 +229,3 @@ def mld_kara_mix(pwp, n):
 	else:
 		return mld
 
-def momentum_flux_original(pwp, n, mld_idx):
-	'''
-	This is the original parametrization of momentum flux as writen
-	by Earle Wilson
-	:param pwp: instance of PWP object
-	:param n: model time step index
-	:param mld_idx: index of mixed layer depth
-	:return:
-	'''
-	### Rotate u,v do wind input, rotate again, apply mixing ###
-	ang = -pwp.f * pwp.dt / 2
-	uvel, vvel = rotate(pwp.u_water[:,n], pwp.v_water[:,n], ang)
-	du = (pwp.tx[n - 1] / (pwp.mld[n] * pwp.dens[0,n])) * pwp.dt
-	dv = (pwp.ty[n - 1] / (pwp.mld[n] * pwp.dens[0,n])) * pwp.dt
-	pwp.u_water[:mld_idx,n] = uvel[:mld_idx] + du
-	pwp.v_water[:mld_idx,n] = vvel[:mld_idx] + dv
-
-	### Apply drag to current ###
-	# Original comment: this is a horrible parameterization of inertial-internal wave dispersion
-	if pwp.drag_ON:
-		ucon = 0.1 * np.abs(pwp.f)
-		if ucon > 1e-10:
-			pwp.u_water[:,n] *= (1 - pwp.dt * ucon)
-			pwp.v_water[:,n] *= (1 - pwp.dt * ucon)
-	else:
-		print("Warning: Parameterization for inertial-internal wave dispersion is turned off.")
-		printDragWarning = False
-
-	pwp.u_water[:,n], pwp.v_water[:,n] = rotate(pwp.u_water[:,n], pwp.v_water[:,n], ang)
-
-def rotate(x,y,theta):
-	'''
-	Rotates the vector (x,y) through an angle theta
-	:param x: x component of vector
-	:param y: y component of vector
-	:param theta: angle [radians]
-	:return: vector (x', y') as tuple
-	'''
-	r = (x + 1j * y) * np.exp(1j * theta)
-	x = r.real
-	y = r.imag
-
-	return x, y

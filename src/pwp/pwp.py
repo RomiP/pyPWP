@@ -31,23 +31,6 @@ import matplotlib.pyplot as plt
 import seawater as sw
 import xarray as xr
 
-# specify surface flux parametrizations
-fluxes = {
-	'temp':temperature_flux,
-	'sal':salinity_flux,
-	'momentum':momentum_flux_original,
-	'co2':wanninkoff,
-	'o2':wanninkoff
-}
-
-# specify MLD parametrization
-# mld_fn = mld_kara
-# mld_fn = mld_kara_mod
-mld_fn = mld_kara_mix
-# mld_fn = mld_density_diff_search
-# mld_fn = mld_density_diff_nearest
-# mld_fn = mld_density_diff_adjusted
-
 class PWP:
 	def __init__(self):
 		'''
@@ -59,6 +42,18 @@ class PWP:
 		Fields initialized to "None" must be filled by calling read_in_init_data() prior
 		to running the model
 		'''
+
+		# specify surface flux parametrizations
+		self._fluxes = {
+			'temp':temperature_flux,
+			'sal':salinity_flux,
+			'momentum':momentum_flux_original,
+			'co2':wanninkoff,
+			'o2':wanninkoff
+		}
+
+		# specify MLD parametrization
+		self._mld_fn = mld_kara_mix
 
 		# True/False flag to turn ON/OFF forcing.
 		self.winds_ON = True # winds
@@ -150,6 +145,39 @@ class PWP:
 
 
 		return s
+
+	def set_flux_parameterization(self, flux_type, flux_method):
+		'''
+
+		:param flux_type: [str] temp, sal, momentum, co2, o2
+		:param flux_method: Callable[[PWP, n, *mld_index, **gas], Varies]
+			* for momentum
+			** for wanninkoff,
+			return values are as listed below:
+				temp: depth vector of temperature flux in deg C
+				sal: sfurface salinity flux in psu [float]
+				momentum: None (mutates PWP)
+				co2, o2: depth vector of gas flux in kg/m^3
+		:return: None
+		'''
+
+		if flux_type not in self._fluxes:
+			print('Invalid flux type, supported values include:\n' + str(self._fluxes.keys()))
+			return
+
+		self._fluxes[flux_type] = flux_method
+
+
+	def set_mld_calc(self, mld_fn):
+		'''
+		Specify function to cqlculate mld
+		function muct accept PWP obj and n (index of current time step) as input,
+		and output mld in m as float-like
+		:param mld_fn: Callable[[PWP, n], float] function to calculate mld
+		:return: None
+		'''
+
+		self._mld_fn = mld_fn
 
 	def read_in_init_data(self, profile, met, tracer_list=[], time_step=None, depth_step=None):
 		'''
@@ -396,9 +424,9 @@ class PWP:
 
 			# compute temp and sal changes
 			if self.heat_ON:
-				self.temp[:,i] += fluxes['temp'](self, i)
+				self.temp[:,i] += self._fluxes['temp'](self, i)
 			if self.emp_ON:
-				self.sal[0,i] = self.sal[0,i-1] + fluxes['sal'](self, i) # add surface flux
+				self.sal[0,i] = self.sal[0,i-1] + self._fluxes['sal'](self, i) # add surface flux
 
 			# update the density
 			self.dens[:,i] = sw.dens0(self.sal[:,i], self.temp[:,i])
@@ -406,7 +434,7 @@ class PWP:
 			# apply tracer fluxes
 			for j in self.tracer_names:
 				# todo: check for saturation
-				vars(self)[j][:,i] = fluxes[j](self, i, j)
+				vars(self)[j][:,i] = self._fluxes[j](self, i, j)
 
 			# # mix top few meters, this prevents freezing of the surface layer
 			# # the seawater package has a bug whereby density decreases indefinitely
@@ -426,7 +454,7 @@ class PWP:
 			self._remove_si(i)
 
 			# compute and record mixed layer depth
-			self.mld[i] = mld_fn(self, i)
+			self.mld[i] = self._mld_fn(self, i)
 			mld_idx = np.argmin(np.abs(self.z-self.mld[i])) # index of mld
 
 			# # for debugging
@@ -434,7 +462,7 @@ class PWP:
 
 			# apply wind stress
 			if self.winds_ON:
-				fluxes['momentum'](self, i, mld_idx)
+				self._fluxes['momentum'](self, i, mld_idx)
 
 			# apply mixed layer entrainment
 			self._bulk_richardson_mix(mld_idx, i)
