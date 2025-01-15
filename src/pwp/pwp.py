@@ -316,7 +316,7 @@ class PWP:
 		self.emp = self.evap - self.precip
 		self.q_in = self.sw
 		self.q_out = -(self.lw + self.qlat + self.qsens)
-		self.mld[0] = mld_fn(self, 0)
+		self.mld[0] = self._mld_fn(self, 0)
 
 	def plot_profile(self, var, n):
 		'''
