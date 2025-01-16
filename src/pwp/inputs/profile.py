@@ -58,45 +58,45 @@ class Profile:
 		sio.savemat(path + '/' + filename, vars(self))
 
 
-def read_from_armor(armor_file, lat, lon):
-	dat = Dataset(armor_file)
-
-	if lon < 0:
-		lon = 360 + lon
-
-	lat_vec = np.squeeze(dat['latitude'][:])
-	lon_vec = np.squeeze(dat['longitude'][:])
-	time = np.squeeze(dat['time'][:])
-	z = np.squeeze(dat['zo'][:])
-
-	i_lat = np.argmin(np.abs(lat_vec - lat))
-	i_lon = np.argmin(np.abs(lon_vec - lon))
-
-	# dim = [time, depth, lat, lon]
-	# temp = np.array(dat['to'][:])
-	temp = np.array(dat['to'][:, :, i_lat, i_lon])
-
-	print()
-	return
-
-
-def read_from_argo(argo_file):
-	dat = Dataset(argo_file)
-
-	lat = float(dat['LATITUDE'][:])
-	lon = float(dat['LONGITUDE'][:])
-
-	pres = np.squeeze(dat['PRES'])  # dbar
-	sal = np.squeeze(dat['PSAL'])  # psu
-	temp = np.squeeze(dat['TEMP'])  # deg C
-
-	dat.close()
-
-	z = sw.dpth(pres, lat)
-
-	prof = Profile(temp=temp, sal=sal, depth=z, lat=lat, lon=lon)
-
-	return prof
+# def read_from_armor(armor_file, lat, lon):
+# 	dat = Dataset(armor_file)
+#
+# 	if lon < 0:
+# 		lon = 360 + lon
+#
+# 	lat_vec = np.squeeze(dat['latitude'][:])
+# 	lon_vec = np.squeeze(dat['longitude'][:])
+# 	time = np.squeeze(dat['time'][:])
+# 	z = np.squeeze(dat['zo'][:])
+#
+# 	i_lat = np.argmin(np.abs(lat_vec - lat))
+# 	i_lon = np.argmin(np.abs(lon_vec - lon))
+#
+# 	# dim = [time, depth, lat, lon]
+# 	# temp = np.array(dat['to'][:])
+# 	temp = np.array(dat['to'][:, :, i_lat, i_lon])
+#
+# 	print()
+# 	return
+#
+#
+# def read_from_argo(argo_file):
+# 	dat = Dataset(argo_file)
+#
+# 	lat = float(dat['LATITUDE'][:])
+# 	lon = float(dat['LONGITUDE'][:])
+#
+# 	pres = np.squeeze(dat['PRES'])  # dbar
+# 	sal = np.squeeze(dat['PSAL'])  # psu
+# 	temp = np.squeeze(dat['TEMP'])  # deg C
+#
+# 	dat.close()
+#
+# 	z = sw.dpth(pres, lat)
+#
+# 	prof = Profile(temp=temp, sal=sal, depth=z, lat=lat, lon=lon)
+#
+# 	return prof
 
 
 def build_from_existing(profile_path, savename=''):

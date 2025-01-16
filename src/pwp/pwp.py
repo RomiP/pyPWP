@@ -362,6 +362,8 @@ class PWP:
 				'depth':depth
 			}
 			for i in dpwp.keys():
+				if i.startswith('_'):
+					continue
 				var = dpwp[i]
 				if isinstance(var, np.ndarray):
 					if min(var.shape) == 1 or len(var.shape) == 1:
