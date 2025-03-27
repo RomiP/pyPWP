@@ -23,6 +23,9 @@ class Profile:
 		:param u: zonal velocity (m/s)
 		:param v: meridional velocity (m/s)
 		'''
+
+		for i in [temp, sal] + list(tracers.values()):
+			assert len(i) == len(depth)
 		self.lat = lat
 		self.lon = lon
 		self.t = temp
@@ -34,6 +37,7 @@ class Profile:
 		self.tracers = list(tracers.keys())
 		for i in tracers.keys():
 			vars(self)[i] = tracers[i]
+
 
 	def __eq__(self, other):
 		for i in vars(self):
