@@ -59,10 +59,12 @@ def wanninkoff(pwp, n, gas):
 	u = pwp.u[n-1]
 	v = pwp.v[n-1]
 	t = pwp.temp[0,n-1]
+	s = pwp.sal[0, n - 1]
 
-	F = gasflux(ca, cw, u , v, t, gas)
+	F = gasflux(ca, cw, u , v, s, t, gas) * pwp.dt / pwp.dz
 	profile = vars(pwp)[gas][:,n-1]
-	profile[0] -= F
+	# profile[0] -= F
+	profile[0] = max(0, profile[0] - F)
 	return profile
 def momentum_flux_original(pwp, n, mld_idx):
 	'''

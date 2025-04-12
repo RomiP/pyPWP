@@ -45,6 +45,7 @@ class Meteorology:
 		:param time_step: number in hours
 		:param metdata: dict-like containing meteorology time series (key names must match attribute names)
 		:param tracers: time series of tracer concentrations (atmo boundary layer), must contain 'time' as key
+				atmospheric concentrations of tracers should be given as partial pressure (atm)
 		'''
 		# date & time
 		self.t_ref = start_date.strftime('%Y-%m-%d %H:%M:%S')  # yyyy-mm-dd HH:MM:SS
@@ -89,6 +90,10 @@ class Meteorology:
 				self.tx = self.interp_to_timestep(t, metdata['tx'])
 			if 'ty' in metdata:
 				self.ty = self.interp_to_timestep(t, metdata['ty'])
+			if 'u' in metdata:
+				self.u = self.interp_to_timestep(t, metdata['u'])
+			if 'v' in metdata:
+				self.v = self.interp_to_timestep(t, metdata['v'])
 			if 'precip' in metdata:
 				self.precip = self.interp_to_timestep(t, metdata['precip'])
 

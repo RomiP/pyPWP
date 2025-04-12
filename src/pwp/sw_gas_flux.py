@@ -17,10 +17,25 @@ as those already included and add the function name to the schmidt_num
 dictionary
 '''
 
+import pyseaflux as psf
+import seawater as sw
+
+KELVIN = 273.15
+mol = 6.02e23
+R = 8.314 # J / K mol (gas constant)
+
+# molar mass kg / mol
+rho = {
+	'o2': 0.032,
+	'co2': 0.044,
+}
+
 
 def schmidt_num_CO2(t, fresh_water=False):
 	'''
-	Schmidt number versus temperature for seawater (35‰) at temperatures from –2°C to 40°C
+	Schmidt number versus temperaturde for seawater (35‰) at temperatures from –2°C to 40°C
+	Wanninkhof 2014
+	Relationship between wind speed and gas exchange over the ocean revisited
 	***FOR CO2***
 
 	:param t: temperature (degrees C)
@@ -38,6 +53,8 @@ def schmidt_num_CO2(t, fresh_water=False):
 def schmidt_num_O2(t, fresh_water=False):
 	'''
 	Schmidt number versus temperature for seawater (35‰) at temperatures from –2°C to 40°C
+	Wanninkhof 2014
+	Relationship between wind speed and gas exchange over the ocean revisited
 	***FOR O2***
 
 	:param t: temperature (degrees C)
@@ -54,7 +71,7 @@ def schmidt_num_O2(t, fresh_water=False):
 
 # dictionary for appropriate schmidt num keyed by gas name
 schmidt_num = {'co2': schmidt_num_CO2,
-			   'o2': schmidt_num_O2}
+               'o2': schmidt_num_O2}
 
 
 def transfer_velocity(u, v, t, gas):
@@ -69,14 +86,55 @@ def transfer_velocity(u, v, t, gas):
 	# calculate the appropriate schmidt number (based on gas)
 	s_num = schmidt_num[gas](t)
 	# compute in cm/h according to Wanninkhof paper
-	k = 0.251 * (u ** 2 + v ** 2) * (660. / s_num) ** -0.5
-	# convert to m/s
-	k *= 0.1 / 3600.
+	k = 0.251 * (u ** 2 + v ** 2) * (660. / s_num) ** 0.5
+	# convert cm/h to m/s
+	k /= 3.6e5
 
 	return k
 
 
-def gasflux(Ca, Cw, u, v, t, gas):
+def solubility(s, t, gas):
+	'''
+	Solubility of dissolved gasses in seawater at 1 atm
+	:param t: Temperature (deg C)
+	:param s: Salinity (PSU)
+	:param gas: Name of dissolved gas (e.g. 'o2')
+	:return: Solubility in kg / m^3 atm
+	'''
+
+	if gas == 'o2':
+		k = sw.satO2(s, t)  # mL / L atm
+		p = 1e5  # Pa
+		t = 25 + 273.15  # K
+		v = k/1000.
+
+		n = p * v / (R * t)
+
+	elif gas == 'co2':
+		n = psf.solubility.solubility_weiss1974(s, t + KELVIN, press_atm=1)  # mol / L atm
+
+	m = rho[gas] * n  # kg / L atm
+	k = m * 1000  # kg / m^3 atm
+	return  k
+
+def partial_pressure(concentration, gas):
+	'''
+	Convert concentration (kg/m^3) in seawater to partial pressure (atm)
+	:param concentration: kg gas / m^3 seawater
+	:param gas: name of gas (e.g. 'o2')
+	:return: partial pressure (atm)
+	'''
+
+	# Henry's Constant at STP in water (L atm / mol)
+	H = {
+		'o2': 770,
+	}
+
+	return concentration * H[gas]  / 1e3 / rho[gas]
+
+
+
+def gasflux(Ca, Cw, u, v, s, t, gas):
 	'''
 	computes air-sea gas flux (positive is water -> air)
 	:param Ca: atmospheric boundary layer gas concentration (mass volume^-1)
@@ -88,5 +146,13 @@ def gasflux(Ca, Cw, u, v, t, gas):
 	:return: gas flux (mass area^-1 time^-1)
 	'''
 
-	F = transfer_velocity(u, v, t, gas.lower()) * (Cw - Ca)
+	gas = gas.lower()
+	F = transfer_velocity(u, v, t, gas) * solubility(s, t, gas) * (partial_pressure(Cw, gas)- Ca)
 	return F
+
+
+if __name__ == '__main__':
+	import numpy as np
+	t = np.linspace(-2, 10, 20)
+	kelvin = 273.15
+	print(transfer_velocity(5, 0, 4, 'o2'))
