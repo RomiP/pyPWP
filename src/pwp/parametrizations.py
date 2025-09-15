@@ -1,5 +1,5 @@
 import numpy as np
-from pwp.sw_gas_flux import gasflux
+from pwp.sw_gas_flux import *
 from pwp.MLD_calc import mld_calc
 from pwp.MLD_kara_modified import *
 
@@ -61,11 +61,64 @@ def wanninkoff(pwp, n, gas):
 	t = pwp.temp[0,n-1]
 	s = pwp.sal[0, n - 1]
 
-	F = gasflux(ca, cw, u , v, s, t, gas) * pwp.dt / pwp.dz
+	F = diffusivegasflux(ca, cw, u , v, s, t, gas) * pwp.dt / pwp.dz
 	profile = vars(pwp)[gas][:,n-1]
 	# profile[0] -= F
 	profile[0] = max(0, profile[0] - F)
 	return profile
+
+
+def saturate(pwp, n, gas,depth=0):
+
+	if depth == 0:
+		zidx = 1
+	else:
+		zidx = max(1, pwp.get_depth_idx(depth))
+	t = pwp.temp[0:zidx, n - 1]
+	s = pwp.sal[0:zidx, n - 1]
+
+	sat = saturation(s, t, gas)
+	profile = vars(pwp)[gas][:, n - 1]
+	profile[0:zidx] = sat
+	return profile
+
+def bubbleflux(pwp, n, gas):
+	ca = vars(pwp)[gas + '_forcing'][n - 1] # kg/m^3
+	cw = vars(pwp)[gas][0, n - 1]
+	u = pwp.u[n - 1]
+	v = pwp.v[n - 1]
+	t = pwp.temp[0, n - 1]
+	s = pwp.sal[0, n - 1]
+
+	u = np.sqrt(u**2 + v**2)
+	F = completely_trapped_bubbles(u, t, ca, gas)
+	F += partially_dissolved_bubbles(u, t, ca, cw, pwp.rkz, gas)
+
+	if F < 0:
+		F = 0
+
+	profile = vars(pwp)[gas][:, n - 1]
+	profile[0] = max(0, profile[0] + F * pwp.dt / pwp.dz)
+
+	return profile
+
+def total_gas_flux(pwp, n, gas):
+	ca = vars(pwp)[gas + '_forcing'][n - 1]
+	cw = vars(pwp)[gas][0, n - 1]
+	u = pwp.u[n - 1]
+	v = pwp.v[n - 1]
+	t = pwp.temp[0, n - 1]
+	s = pwp.sal[0, n - 1]
+
+	F = -diffusivegasflux(ca, cw, u, v, s, t, gas)
+	u = np.sqrt(u ** 2 + v ** 2)
+	F += completely_trapped_bubbles(u, t, ca, gas)
+	F += partially_dissolved_bubbles(u, t, ca, cw, pwp.rkz, gas)
+
+	profile = vars(pwp)[gas][:, n - 1]
+	profile[0] = max(0, profile[0] + F * pwp.dt / pwp.dz)
+	return profile
+
 def momentum_flux_original(pwp, n, mld_idx):
 	'''
 	This is the original parametrization of momentum flux as writen

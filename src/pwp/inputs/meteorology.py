@@ -74,9 +74,10 @@ class Meteorology:
 
 		if metdata:
 			t = metdata['time']
-			tdelt = (start_date - metdata['start_date']).total_seconds() / 3600
-			t -= tdelt
-			t /= 24 # convert to days
+			if 'start_date' in metdata:
+				tdelt = (start_date - metdata['start_date']).total_seconds() / 3600
+				t -= tdelt
+				t /= 24 # convert to days
 
 			if 'lw' in metdata:
 				self.lw = self.interp_to_timestep(t, metdata['lw'])

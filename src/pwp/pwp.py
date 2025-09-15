@@ -146,7 +146,7 @@ class PWP:
 
 		return s
 
-	def set_flux_parameterization(self, flux_type, flux_method):
+	def set_flux_parameterization(self, flux_type, flux_method, **kwargs):
 		'''
 
 		:param flux_type: [str] temp, sal, momentum, co2, o2
@@ -165,7 +165,7 @@ class PWP:
 			print('Invalid flux type, supported values include:\n' + str(self._fluxes.keys()))
 			return
 
-		self._fluxes[flux_type] = flux_method
+		self._fluxes[flux_type] = (flux_method, kwargs)
 
 
 	def set_mld_calc(self, mld_fn):
@@ -436,7 +436,7 @@ class PWP:
 			# apply tracer fluxes
 			for j in self.tracer_names:
 				# todo: check for saturation
-				vars(self)[j][:,i] = self._fluxes[j](self, i, j)
+				vars(self)[j][:,i] = self._fluxes[j][0](self, i, j, **self._fluxes[j][1])
 
 			# # mix top few meters, this prevents freezing of the surface layer
 			# # the seawater package has a bug whereby density decreases indefinitely
@@ -481,6 +481,17 @@ class PWP:
 		if save_name:
 			print('saving...')
 			self.save(save_name, write_info)
+
+	def get_depth_idx(self, depth):
+		'''
+		Returns index of z array nearest the specified depth
+		:param depth: depth in metres or 'mld' to get the index of mixed layer depth
+		:return: int index of nearest model depth
+		'''
+		if depth == 'mld':
+			depth = self.mld[self.mld > 0][-1]
+
+		return np.argmin(np.abs(self.z - depth))
 
 	def _remove_si(self, n):
 		'''
